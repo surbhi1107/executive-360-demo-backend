@@ -188,6 +188,79 @@ describe('HTTP API', () => {
     assert.deepEqual(sent.system.at(-1).cache_control, { type: 'ephemeral' });
   });
 
+  test('ask: a plain-text reply still shows the files it was based on', async () => {
+    const plain = { messages: { create: async () => ({ content: [{ type: 'text', text: 'Sunrise is late.' }], usage: {} }) } };
+    ask.setClient(plain);
+    try {
+      const project = await (await post('/api/ask', { question: 'What is the penalty on Sunrise Solar Park?' })).json();
+      assert.ok(project.sources.some((s) => s.kind === 'excel' && s.name === 'Executive_360_Project_Data_clean.xlsx'));
+      assert.ok(project.sources.some((s) => s.kind === 'word' && s.name.startsWith('E360-CA-P01')));
+      const general = await (await post('/api/ask', { question: 'Which projects are late?' })).json();
+      assert.ok(general.sources.some((s) => s.kind === 'excel' && s.name === 'Executive_360_Project_Data_clean.xlsx'));
+    } finally {
+      ask.setClient(fake);
+    }
+  });
+
+  test('ask: charts are built from the verified numbers', async () => {
+    const ask1 = async (question, history = []) => (await (await post('/api/ask', { question, history })).json()).chart;
+
+    const pen = await ask1('What is the penalty exposure across projects?');
+    assert.equal(pen.type, 'bars');
+    assert.deepEqual(pen.rows.map((r) => [r.id, r.value]), [['P8', 6.5], ['P1', 3.8], ['P5', 0.9]]); // ranked, same as the dashboard
+    assert.deepEqual(pen.table.columns.slice(0, 2), ['Project', 'Agreement']);
+    assert.equal(pen.table.rows.length, 3);
+
+    const rules = await ask1('What is the penalty on Sunrise Solar Park?');
+    assert.equal(rules.id, 'penalty_rules');
+    assert.ok(near(rules.rows.reduce((s, r) => s + r.value, 0), 3.8));
+
+    const prog = await ask1('How is progress against plan across the portfolio?');
+    assert.equal(prog.type, 'bullet');
+    assert.equal(prog.rows.length, 12);
+    for (const r of prog.rows) {
+      const p = dash.projects.find((x) => x.id === r.id);
+      assert.deepEqual([r.value, r.target], [p.ac, p.pl]);
+    }
+
+    const bud = await ask1('Which projects are over budget?');
+    assert.equal(bud.type, 'grouped');
+    assert.equal(bud.series.length, 2);
+
+    const health = await ask1('Which projects are at risk?');
+    assert.deepEqual(health.parts.map((p) => [p.key, p.value]), [['risk', 4], ['watch', 4], ['ok', 4]]);
+
+    const time = await ask1('Why is Sunrise Solar Park behind?');
+    assert.equal(time.type, 'range');
+    assert.equal(time.today, '2026-11-14');
+    assert.ok(time.rows.every((r) => r.from && r.to));
+
+    assert.equal(await ask1('Hello there'), null); // nothing to chart
+  });
+
+  test('ask: a portfolio question is not charted for a project from the previous turn', async () => {
+    const history = [{ q: 'Why is Sunrise Solar Park behind?', a: 'Because of slow mobilisation.' }];
+    const r = await (await post('/api/ask', { question: 'Which projects are late?', history })).json();
+    assert.equal(r.chart.id, 'slip_by_project');
+    // ...but a follow-up that refers back keeps the project
+    const f = await (await post('/api/ask', { question: 'And what about its milestones?', history })).json();
+    assert.equal(f.chart.id, 'milestone_dates');
+  });
+
+  test('ask: the assistant can pick the chart, limit it to projects, or switch it off', async () => {
+    const withHint = (chart) => ({
+      messages: { create: async () => ({ content: [{ type: 'tool_use', name: 'answer', input: { hero: '', body: 'ok', sources: [], followups: [], chart } }], usage: {} }) },
+    });
+    const run = async (chart, question) => {
+      ask.setClient(withHint(chart));
+      try { return (await (await post('/api/ask', { question })).json()).chart; } finally { ask.setClient(fake); }
+    };
+    assert.equal(await run({ type: 'none' }, 'What is the penalty exposure?'), null);
+    assert.equal((await run({ type: 'timeline', projects: ['P8'] }, 'Tell me about the projects')).title, 'Highway Bypass Package 3: milestone dates');
+    assert.equal((await run({ type: 'slip', projects: ['P1', 'P8', 'P99'] }, 'Which are late?')).rows.length, 2); // unknown ids ignored
+    assert.equal((await run({ type: 'banana' }, 'What is the penalty exposure?')).type, 'bars'); // invalid type falls back to the question
+  });
+
   test('ask: empty question is a 400', async () => {
     const r = await post('/api/ask', { question: '   ' });
     assert.equal(r.status, 400);

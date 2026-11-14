@@ -12,6 +12,7 @@
 // Claude never calculates penalties itself; it explains the numbers code has calculated.
 import config from './config.js';
 import { allClauses } from './agreements.js';
+import { CHART_KINDS, chooseChart } from './charts.js';
 
 const SYSTEM = `You are Executive 360°, the project assistant for {ceo}, the CEO. Today is {today}.
 
@@ -24,6 +25,7 @@ Rules:
 - Dates: write them like 4 Dec 2026. Money: ₹ crore written as ₹3.8 Cr.
 - Cite every fact you use by its source ID in the sources list. Do not put source IDs in the text.
 - Bold at most two key phrases with <strong>…</strong>. No other HTML or markdown.
+- Choose the chart that best supports your answer in the chart field (penalty, slip, progress, budget, timeline for one project, health), or none when a chart would add nothing. The system draws the chart from the verified data, so never put numbers for it in your reply beyond what the text needs.
 - Always reply by calling the answer tool, exactly once, and write nothing outside it.`;
 
 export const ANSWER_TOOL = {
@@ -45,6 +47,15 @@ export const ANSWER_TOOL = {
         },
       },
       followups: { type: 'array', items: { type: 'string' }, description: '2 or 3 short follow-up questions the CEO might ask next.' },
+      chart: {
+        type: 'object',
+        description: 'The chart to show under the answer. The system builds it from the verified data.',
+        properties: {
+          type: { type: 'string', enum: [...CHART_KINDS, 'none'], description: 'penalty = exposure by project (or by rule for one project); slip = weeks late by project; progress = progress against plan; budget = budget used against progress; timeline = milestone dates of ONE project; health = projects by health; none = no chart.' },
+          projects: { type: 'array', items: { type: 'string' }, description: 'Optional project IDs (such as P1) to limit the chart to.' },
+        },
+        required: ['type'],
+      },
     },
     required: ['hero', 'body', 'sources', 'followups'],
   },
@@ -91,6 +102,11 @@ export function buildFacts(dash) {
   index['CALC:portfolio'] = {
     kind: 'calc', locator: 'Portfolio summary',
     record: [['Projects', s.projects], ['At risk', s.at_risk], ['Estimated penalty exposure', `₹${s.penalty_total_cr} Cr`]],
+  };
+
+  index['XLS:workbook'] = {
+    kind: 'excel', locator: 'Projects, Project Updates, Milestones, Stages and Delay Reasons tabs',
+    record: [['Workbook', dash.source], ['Projects', s.projects], ['As of', dash.as_of]],
   };
 
   for (const p of dash.projects) {
@@ -286,6 +302,27 @@ export async function answer(question, dash, history = []) {
     const cc = citation(sid, s.used_for ?? '', index, dash.source);
     if (cc) cites.push(cc);
   }
+  // The model sometimes answers in plain text or cites IDs we do not know. The answer must still show which
+  // files it was built from, so fall back to the data that was actually sent to it for this question.
+  if (!cites.length) {
+    const usedFor = 'Data the answer was based on';
+    const ids = pids.length
+      ? pids.slice(0, 3).flatMap((pid) => [
+          `XLS:Projects:${pid}`,
+          `CALC:penalty:${pid}`,
+          ...Object.keys(index).filter((k) => k.startsWith('DOC:') && index[k].locator === 'Clause 9.1' && k.includes(`P${pid.slice(1).padStart(2, '0')}`)),
+        ])
+      : ['XLS:workbook', 'CALC:portfolio'];
+    for (const sid of ids) {
+      const cc = citation(sid, usedFor, index, dash.source);
+      if (cc) cites.push(cc);
+    }
+  }
+  // The chart follows THIS question. Projects from earlier turns only count for a follow-up that refers back
+  // to them ("what about its budget?"), never for a question about the whole portfolio.
+  const own = mentionedProjects(question, dash.projects);
+  const refersBack = /\b(it|its|this|that|they|them|their|there)\b/i.test(question) && !/\b(projects|portfolio|all|each|every|across|which)\b/i.test(question);
+  const chart = chooseChart(dash, { hint: out.chart, question, pids: own.length ? own : refersBack ? pids : [] });
   const usage = resp.usage ?? {};
   return {
     hero: escapeHtml(String(out.hero ?? '').trim().slice(0, 40)) || null,
@@ -293,6 +330,7 @@ export async function answer(question, dash, history = []) {
     list: (out.list ?? []).slice(0, 8).map(cleanHtml),
     sources: cites,
     followups: (out.followups ?? []).slice(0, 3).map((x) => String(x).slice(0, 120)),
+    chart,
     projects: pids,
     meta: { model: config.CLAUDE_MODEL, ms: Date.now() - t0, input_tokens: usage.input_tokens ?? null, output_tokens: usage.output_tokens ?? null },
   };
