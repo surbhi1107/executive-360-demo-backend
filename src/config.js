@@ -27,7 +27,8 @@ const config = {
   WORKBOOK: filePath('E360_WORKBOOK', path.join(DATA_DIR, 'Executive_360_Project_Data_clean.xlsx')),
   AGREEMENTS_DIR: filePath('E360_AGREEMENTS_DIR', path.join(DATA_DIR, 'agreements')),
   RULES: filePath('E360_RULES', path.join(DATA_DIR, 'rules.json')),
-  DB_PATH: filePath('E360_DB', path.join(ROOT, 'instance', 'executive360.db')),
+  // On Vercel only /tmp is writable (and it is not kept between cold starts), so the database lives there.
+  DB_PATH: filePath('E360_DB', process.env.VERCEL ? path.join(os.tmpdir(), 'executive360.db') : path.join(ROOT, 'instance', 'executive360.db')),
   // Built React app (frontend/dist). Express serves it when it exists.
   FRONTEND_DIST: filePath('E360_FRONTEND_DIST', path.join(ROOT, '..', 'frontend', 'dist')),
 
@@ -51,6 +52,9 @@ const config = {
   CEO_NAME: process.env.E360_CEO_NAME || 'Anita Rao',
 
   PORT: int('PORT', 4000),
+
+  // Web address of the React app when it is hosted separately (for example on Vercel). Empty = allow any.
+  CORS_ORIGIN: str('E360_CORS_ORIGIN'),
 
   // The date everything is measured against.
   asOf() {

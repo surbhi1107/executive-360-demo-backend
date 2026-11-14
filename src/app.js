@@ -28,6 +28,17 @@ export function createApp() {
   app.disable('x-powered-by');
   store.initDb();
 
+  // Lets the React app call this API from another address (a separate Vercel project, for example).
+  app.use((req, res, next) => {
+    res.set({
+      'Access-Control-Allow-Origin': config.CORS_ORIGIN || '*',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      Vary: 'Origin',
+    });
+    return req.method === 'OPTIONS' ? res.sendStatus(204) : next();
+  });
+
   // Bad JSON is treated as an empty body (the handlers then answer with a clear 400).
   app.use((req, res, next) => express.json({ limit: '1mb' })(req, res, (err) => {
     if (err) req.body = {};
