@@ -1,0 +1,729 @@
+{
+  "_about": "Delay-damage rules extracted from the 12 project agreements and checked by a person. One-time setup data: update only when an agreement changes.",
+  "projects": {
+    "P1": {
+      "contract_value_cr": 480,
+      "agreement": "E360-CA-P01",
+      "aggregate_cap_pct": 10
+    },
+    "P2": {
+      "contract_value_cr": 84,
+      "agreement": "E360-IDA-P02",
+      "aggregate_cap_pct": null
+    },
+    "P3": {
+      "contract_value_cr": 120,
+      "agreement": "E360-IDA-P03",
+      "aggregate_cap_pct": null
+    },
+    "P4": {
+      "contract_value_cr": 46,
+      "agreement": "E360-IDA-P04",
+      "aggregate_cap_pct": null
+    },
+    "P5": {
+      "contract_value_cr": 760,
+      "agreement": "E360-CA-P05",
+      "aggregate_cap_pct": 10
+    },
+    "P6": {
+      "contract_value_cr": 350,
+      "agreement": "E360-CA-P06",
+      "aggregate_cap_pct": 10
+    },
+    "P7": {
+      "contract_value_cr": 260,
+      "agreement": "E360-IDA-P07",
+      "aggregate_cap_pct": null
+    },
+    "P8": {
+      "contract_value_cr": 650,
+      "agreement": "E360-CA-P08",
+      "aggregate_cap_pct": 10
+    },
+    "P9": {
+      "contract_value_cr": 72,
+      "agreement": "E360-IDA-P09",
+      "aggregate_cap_pct": null
+    },
+    "P10": {
+      "contract_value_cr": 58,
+      "agreement": "E360-IDA-P10",
+      "aggregate_cap_pct": null
+    },
+    "P11": {
+      "contract_value_cr": 108,
+      "agreement": "E360-CA-P11",
+      "aggregate_cap_pct": 10
+    },
+    "P12": {
+      "contract_value_cr": 150,
+      "agreement": "E360-IDA-P12",
+      "aggregate_cap_pct": null
+    }
+  },
+  "rules": [
+    {
+      "id": "PR01",
+      "project": "P1",
+      "applies_to": "Phase 1 key milestone",
+      "measured_against": "Revised date",
+      "link": {
+        "type": "milestone",
+        "key": "P1|Phase 1"
+      },
+      "grace_weeks": 3,
+      "rate_cr_per_week": 0.2,
+      "cap_cr": 2.5,
+      "rule_text": "0.2 Cr for each week Phase 1 finishes after its revised date, after a 3-week grace period, up to 2.5 Cr",
+      "exclusions": "An approved extension-of-time claim would move the revised date and reduce this",
+      "source": "E360-CA-P01, Article 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR02",
+      "project": "P1",
+      "applies_to": "Phase 2 key milestone",
+      "measured_against": "Revised date",
+      "link": {
+        "type": "milestone",
+        "key": "P1|Phase 2"
+      },
+      "grace_weeks": 3,
+      "rate_cr_per_week": 0.2,
+      "cap_cr": 2.5,
+      "rule_text": "0.2 Cr for each week Phase 2 finishes after its revised date, after a 3-week grace period, up to 2.5 Cr",
+      "exclusions": "An approved extension-of-time claim would move the revised date and reduce this",
+      "source": "E360-CA-P01, Article 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR03a",
+      "project": "P1",
+      "applies_to": "Phase 3 (Section B)",
+      "measured_against": "Revised date",
+      "link": {
+        "type": "milestone",
+        "key": "P1|Phase 3"
+      },
+      "grace_weeks": 8,
+      "rate_cr_per_week": 0.1,
+      "cap_cr": 1.5,
+      "rule_text": "0.1 Cr for each week Section B is commissioned after its revised date, after an 8-week grace period, up to 1.5 Cr",
+      "exclusions": "Applies to each section separately",
+      "source": "E360-CA-P01, Article 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR03b",
+      "project": "P1",
+      "applies_to": "Phase 4 (Section C)",
+      "measured_against": "Revised date",
+      "link": {
+        "type": "milestone",
+        "key": "P1|Phase 4"
+      },
+      "grace_weeks": 8,
+      "rate_cr_per_week": 0.1,
+      "cap_cr": 1.5,
+      "rule_text": "0.1 Cr for each week Section C is commissioned after its revised date, after an 8-week grace period, up to 1.5 Cr",
+      "exclusions": "Applies to each section separately",
+      "source": "E360-CA-P01, Article 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR03c",
+      "project": "P1",
+      "applies_to": "Phase 5 (Section D)",
+      "measured_against": "Revised date",
+      "link": {
+        "type": "milestone",
+        "key": "P1|Phase 5"
+      },
+      "grace_weeks": 8,
+      "rate_cr_per_week": 0.1,
+      "cap_cr": 1.5,
+      "rule_text": "0.1 Cr for each week Section D is commissioned after its revised date, after an 8-week grace period, up to 1.5 Cr",
+      "exclusions": "Applies to each section separately",
+      "source": "E360-CA-P01, Article 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR04",
+      "project": "P1",
+      "applies_to": "Final handover",
+      "measured_against": "Final contract date",
+      "link": {
+        "type": "final"
+      },
+      "grace_weeks": 0,
+      "rate_cr_per_week": 2.4,
+      "cap_cr": 48,
+      "rule_text": "0.5% of contract value for each week handover is after the final contract date, up to 10% of contract value",
+      "exclusions": "Charged in addition to milestone penalties",
+      "source": "E360-CA-P01, Article 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR05",
+      "project": "P2",
+      "applies_to": "Phase 1 (long-lead orders placed)",
+      "measured_against": "Revised date",
+      "link": {
+        "type": "milestone",
+        "key": "P2|Phase 1"
+      },
+      "grace_weeks": 2,
+      "rate_cr_per_week": 0.1,
+      "cap_cr": 1,
+      "rule_text": "0.1 Cr for each week long-lead orders are placed after the revised date, after a 2-week grace period, up to 1 Cr",
+      "exclusions": "Internal project: the charge is paid from the project budget to the sponsoring business unit; contract value shown is the approved budget",
+      "source": "E360-IDA-P02, Section 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR06",
+      "project": "P2",
+      "applies_to": "Phase 2 key milestone (start of production)",
+      "measured_against": "Revised date",
+      "link": {
+        "type": "milestone",
+        "key": "P2|Phase 2"
+      },
+      "grace_weeks": 0,
+      "rate_cr_per_week": 0.5,
+      "cap_cr": 5,
+      "rule_text": "0.5 Cr for each week start of production is after the revised date, no grace period, up to 5 Cr",
+      "exclusions": "Passed on from the customer supply agreement for the new model launch",
+      "source": "E360-IDA-P02, Section 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR07",
+      "project": "P2",
+      "applies_to": "Phase 3 (ramp-up to rated output)",
+      "measured_against": "Revised date",
+      "link": {
+        "type": "milestone",
+        "key": "P2|Phase 3"
+      },
+      "grace_weeks": 2,
+      "rate_cr_per_week": 0.3,
+      "cap_cr": 3,
+      "rule_text": "0.3 Cr for each week rated output is reached after the revised date, after a 2-week grace period, up to 3 Cr",
+      "exclusions": "Rated output means 3 consecutive shifts at design speed",
+      "source": "E360-IDA-P02, Section 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR08",
+      "project": "P3",
+      "applies_to": "Phase 2 (structure complete)",
+      "measured_against": "Revised date",
+      "link": {
+        "type": "milestone",
+        "key": "P3|Phase 2"
+      },
+      "grace_weeks": 1,
+      "rate_cr_per_week": 0.2,
+      "cap_cr": 2,
+      "rule_text": "0.2 Cr for each week the structure is completed after the revised date, after a 1-week grace period, up to 2 Cr",
+      "exclusions": "Internal project: the charge is paid from the project budget to the sponsoring business unit; contract value shown is the approved budget",
+      "source": "E360-IDA-P03, Section 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR09",
+      "project": "P3",
+      "applies_to": "Cold rooms ready for first stock intake",
+      "measured_against": "First stock intake date",
+      "link": {
+        "type": "reference",
+        "due_date": "2027-07-01",
+        "due_label": "First stock intake date",
+        "forecast_from": "P3|Phase 3"
+      },
+      "grace_weeks": 0,
+      "rate_cr_per_week": 0.4,
+      "cap_cr": 4,
+      "rule_text": "0.4 Cr for each week cold rooms are ready after the first stock intake date, no grace period, up to 4 Cr",
+      "exclusions": "Covers the cost of renting outside cold storage",
+      "source": "E360-IDA-P03, Section 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR10",
+      "project": "P3",
+      "applies_to": "Final handover",
+      "measured_against": "Final contract date",
+      "link": {
+        "type": "final"
+      },
+      "grace_weeks": 0,
+      "rate_cr_per_week": 0.3,
+      "cap_cr": 6,
+      "rule_text": "0.25% of budget for each week handover is after the final contract date, up to 5% of budget",
+      "exclusions": "Charged in addition to the other charges",
+      "source": "E360-IDA-P03, Section 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR11",
+      "project": "P4",
+      "applies_to": "Phase 1 (environmental permit)",
+      "measured_against": "Revised date",
+      "link": {
+        "type": "milestone",
+        "key": "P4|Phase 1"
+      },
+      "grace_weeks": 2,
+      "rate_cr_per_week": 0.05,
+      "cap_cr": 0.5,
+      "rule_text": "0.05 Cr for each week the permit is late because of late or incomplete submissions, after a 2-week grace period, up to 0.5 Cr",
+      "exclusions": "No charge for delay caused by the authority. Internal project: the charge is paid from the project budget to the sponsoring business unit; contract value shown is the approved budget",
+      "source": "E360-IDA-P04, Section 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR12",
+      "project": "P4",
+      "applies_to": "Plant shutdown",
+      "measured_against": "Agreed shutdown window",
+      "link": {
+        "type": "reference",
+        "due_date": "2027-03-31",
+        "due_label": "End of agreed shutdown window",
+        "forecast_from": "P4|Phase 2"
+      },
+      "grace_weeks": 0,
+      "rate_cr_per_week": 0.3,
+      "cap_cr": 3,
+      "rule_text": "0.3 Cr for each week the paint shop shutdown runs beyond the agreed window, no grace period, up to 3 Cr",
+      "exclusions": "Covers lost production",
+      "source": "E360-IDA-P04, Section 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR13",
+      "project": "P4",
+      "applies_to": "Final handover",
+      "measured_against": "Final contract date",
+      "link": {
+        "type": "final"
+      },
+      "grace_weeks": 2,
+      "rate_cr_per_week": 0.115,
+      "cap_cr": 2.3,
+      "rule_text": "0.25% of budget for each week handover is after the final contract date, after a 2-week grace period, up to 5% of budget",
+      "exclusions": "Charged in addition to the shutdown charge",
+      "source": "E360-IDA-P04, Section 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR14",
+      "project": "P5",
+      "applies_to": "Phase 2 key milestone (foundations complete)",
+      "measured_against": "Revised date",
+      "link": {
+        "type": "milestone",
+        "key": "P5|Phase 2"
+      },
+      "grace_weeks": 0,
+      "rate_cr_per_week": 0.3,
+      "cap_cr": 3,
+      "rule_text": "0.3 Cr for each week foundations finish after the revised date, no grace period, up to 3 Cr",
+      "exclusions": "Weather delays certified by the client engineer are excluded",
+      "source": "E360-CA-P05, Article 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR15",
+      "project": "P5",
+      "applies_to": "Phase 3 key milestone (turbine erection)",
+      "measured_against": "Revised date",
+      "link": {
+        "type": "milestone",
+        "key": "P5|Phase 3"
+      },
+      "grace_weeks": 2,
+      "rate_cr_per_week": 0.4,
+      "cap_cr": 4,
+      "rule_text": "0.4 Cr for each week turbine erection finishes after the revised date, after a 2-week grace period, up to 4 Cr",
+      "exclusions": "Days lost to high wind above the crane limit are excluded",
+      "source": "E360-CA-P05, Article 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR16",
+      "project": "P5",
+      "applies_to": "Final handover",
+      "measured_against": "Final contract date",
+      "link": {
+        "type": "final"
+      },
+      "grace_weeks": 0,
+      "rate_cr_per_week": 3.8,
+      "cap_cr": 76,
+      "rule_text": "0.5% of contract value for each week handover is after the final contract date, up to 10% of contract value",
+      "exclusions": "Charged in addition to milestone penalties",
+      "source": "E360-CA-P05, Article 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR17",
+      "project": "P6",
+      "applies_to": "Phase 2 key milestone (Depot 1 energisation)",
+      "measured_against": "Revised date",
+      "link": {
+        "type": "milestone",
+        "key": "P6|Phase 2"
+      },
+      "grace_weeks": 1,
+      "rate_cr_per_week": 0.25,
+      "cap_cr": 2.5,
+      "rule_text": "0.25 Cr for each week energisation is after the revised date, after a 1-week grace period, up to 2.5 Cr",
+      "exclusions": "Delays from track access blocks cancelled by the operator are excluded",
+      "source": "E360-CA-P06, Article 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR18",
+      "project": "P6",
+      "applies_to": "Phase 3 key milestone (Depot 2 energisation)",
+      "measured_against": "Revised date",
+      "link": {
+        "type": "milestone",
+        "key": "P6|Phase 3"
+      },
+      "grace_weeks": 1,
+      "rate_cr_per_week": 0.25,
+      "cap_cr": 2.5,
+      "rule_text": "0.25 Cr for each week energisation is after the revised date, after a 1-week grace period, up to 2.5 Cr",
+      "exclusions": "Delays from track access blocks cancelled by the operator are excluded",
+      "source": "E360-CA-P06, Article 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR19",
+      "project": "P6",
+      "applies_to": "Final handover",
+      "measured_against": "Final contract date",
+      "link": {
+        "type": "final"
+      },
+      "grace_weeks": 0,
+      "rate_cr_per_week": 1.75,
+      "cap_cr": 35,
+      "rule_text": "0.5% of contract value for each week handover is after the final contract date, up to 10% of contract value",
+      "exclusions": "No bonus for early handover",
+      "source": "E360-CA-P06, Article 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR20",
+      "project": "P7",
+      "applies_to": "Phase 3 (integrated systems test)",
+      "measured_against": "Revised date",
+      "link": {
+        "type": "milestone",
+        "key": "P7|Phase 3"
+      },
+      "grace_weeks": 4,
+      "rate_cr_per_week": 0.1,
+      "cap_cr": 1,
+      "rule_text": "0.1 Cr for each week the test is completed after the revised date, after a 4-week grace period, up to 1 Cr",
+      "exclusions": "Internal project: the charge is paid from the project budget to the sponsoring business unit; contract value shown is the approved budget",
+      "source": "E360-IDA-P07, Section 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR21",
+      "project": "P7",
+      "applies_to": "Hall ready for first customer move-in",
+      "measured_against": "Customer move-in date",
+      "link": {
+        "type": "reference",
+        "due_date": "2027-03-01",
+        "due_label": "Customer move-in date",
+        "forecast_from": "P7|Phase 4"
+      },
+      "grace_weeks": 0,
+      "rate_cr_per_week": 0.4,
+      "cap_cr": 4,
+      "rule_text": "0.4 Cr for each week the hall is ready after the customer move-in date, no grace period, up to 4 Cr",
+      "exclusions": "Passed on as service credits under the first customer's hosting agreement",
+      "source": "E360-IDA-P07, Section 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR22",
+      "project": "P7",
+      "applies_to": "Final handover",
+      "measured_against": "Final contract date",
+      "link": {
+        "type": "final"
+      },
+      "grace_weeks": 4,
+      "rate_cr_per_week": 0.65,
+      "cap_cr": 13,
+      "rule_text": "0.25% of budget for each week handover is after the final contract date, after a 4-week grace period, up to 5% of budget",
+      "exclusions": "Charged in addition to the other charges",
+      "source": "E360-IDA-P07, Section 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR23",
+      "project": "P8",
+      "applies_to": "Phase 2 key milestone (km 0 to 12 complete)",
+      "measured_against": "Revised date",
+      "link": {
+        "type": "milestone",
+        "key": "P8|Phase 2"
+      },
+      "grace_weeks": 6,
+      "rate_cr_per_week": 0.4,
+      "cap_cr": 4,
+      "rule_text": "0.4 Cr for each week the section is completed after the revised date, after a 6-week grace period, up to 4 Cr",
+      "exclusions": "Stretches where land was handed over late are excluded",
+      "source": "E360-CA-P08, Article 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR24",
+      "project": "P8",
+      "applies_to": "Phase 3 key milestone (Bridge 2 deck)",
+      "measured_against": "Revised date",
+      "link": {
+        "type": "milestone",
+        "key": "P8|Phase 3"
+      },
+      "grace_weeks": 6,
+      "rate_cr_per_week": 0.4,
+      "cap_cr": 4,
+      "rule_text": "0.4 Cr for each week the deck is completed after the revised date, after a 6-week grace period, up to 4 Cr",
+      "exclusions": "Monsoon stoppages certified by the authority engineer are excluded",
+      "source": "E360-CA-P08, Article 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR25",
+      "project": "P8",
+      "applies_to": "Final handover",
+      "measured_against": "Final contract date",
+      "link": {
+        "type": "final"
+      },
+      "grace_weeks": 0,
+      "rate_cr_per_week": 1.625,
+      "cap_cr": 65,
+      "rule_text": "0.25% of contract value for each week handover is after the final contract date, up to 10% of contract value",
+      "exclusions": "Delay caused by late land handover by the authority can be excluded through an extension-of-time claim",
+      "source": "E360-CA-P08, Article 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR26",
+      "project": "P9",
+      "applies_to": "Each site (Phases 2 to 4)",
+      "measured_against": "Planned site commissioning date",
+      "link": {
+        "type": "milestone",
+        "key": "P9|Phase 3"
+      },
+      "grace_weeks": 1,
+      "rate_cr_per_week": 0.05,
+      "cap_cr": 0.3,
+      "rule_text": "0.05 Cr for each week a site is commissioned after its planned date, after a 1-week grace period, up to 0.3 Cr per site",
+      "exclusions": "Internal project: the charge is paid from the project budget to the sponsoring business unit; contract value shown is the approved budget",
+      "source": "E360-IDA-P09, Section 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR27",
+      "project": "P9",
+      "applies_to": "Phase 3 (sites 6 to 10 commissioned)",
+      "measured_against": "Revised date",
+      "link": {
+        "type": "milestone",
+        "key": "P9|Phase 3"
+      },
+      "grace_weeks": 1,
+      "rate_cr_per_week": 0.1,
+      "cap_cr": 1,
+      "rule_text": "0.1 Cr for each week the phase finishes after the revised date, after a 1-week grace period, up to 1 Cr",
+      "exclusions": "Charged in addition to the per-site charge",
+      "source": "E360-IDA-P09, Section 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR28",
+      "project": "P9",
+      "applies_to": "Final handover",
+      "measured_against": "Final contract date",
+      "link": {
+        "type": "final"
+      },
+      "grace_weeks": 0,
+      "rate_cr_per_week": 0.18,
+      "cap_cr": 3.6,
+      "rule_text": "0.25% of budget for each week handover is after the final contract date, up to 5% of budget",
+      "exclusions": "Charged in addition to the other charges",
+      "source": "E360-IDA-P09, Section 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR29",
+      "project": "P10",
+      "applies_to": "Phase 1 (design freeze)",
+      "measured_against": "Revised date",
+      "link": {
+        "type": "milestone",
+        "key": "P10|Phase 1"
+      },
+      "grace_weeks": 2,
+      "rate_cr_per_week": 0.05,
+      "cap_cr": 0.5,
+      "rule_text": "0.05 Cr for each week design freeze is after the revised date, after a 2-week grace period, up to 0.5 Cr",
+      "exclusions": "Internal project: the charge is paid from the project budget to the sponsoring business unit; contract value shown is the approved budget",
+      "source": "E360-IDA-P10, Section 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR30",
+      "project": "P10",
+      "applies_to": "Plant shutdown",
+      "measured_against": "Agreed shutdown window",
+      "link": {
+        "type": "reference",
+        "due_date": "2027-09-30",
+        "due_label": "End of agreed shutdown window",
+        "forecast_from": "P10|Phase 3"
+      },
+      "grace_weeks": 0,
+      "rate_cr_per_week": 0.4,
+      "cap_cr": 4,
+      "rule_text": "0.4 Cr for each week boiler installation runs beyond the agreed shutdown window, no grace period, up to 4 Cr",
+      "exclusions": "Covers the cost of hired steam supply",
+      "source": "E360-IDA-P10, Section 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR31",
+      "project": "P10",
+      "applies_to": "Final handover",
+      "measured_against": "Final contract date",
+      "link": {
+        "type": "final"
+      },
+      "grace_weeks": 0,
+      "rate_cr_per_week": 0.145,
+      "cap_cr": 2.9,
+      "rule_text": "0.25% of budget for each week handover is after the final contract date, up to 5% of budget",
+      "exclusions": "Charged in addition to the shutdown charge",
+      "source": "E360-IDA-P10, Section 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR32",
+      "project": "P11",
+      "applies_to": "Phase 2 key milestone (transformer installation)",
+      "measured_against": "Revised date",
+      "link": {
+        "type": "milestone",
+        "key": "P11|Phase 2"
+      },
+      "grace_weeks": 2,
+      "rate_cr_per_week": 0.1,
+      "cap_cr": 1,
+      "rule_text": "0.1 Cr for each week installation finishes after the revised date, after a 2-week grace period, up to 1 Cr",
+      "exclusions": "Delays from grid outages refused by the client are excluded",
+      "source": "E360-CA-P11, Article 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR33",
+      "project": "P11",
+      "applies_to": "Final handover",
+      "measured_against": "Final contract date",
+      "link": {
+        "type": "final"
+      },
+      "grace_weeks": 1,
+      "rate_cr_per_week": 0.54,
+      "cap_cr": 5.4,
+      "rule_text": "0.5% of contract value for each week handover is after the final contract date, after a 1-week grace period, up to 5% of contract value",
+      "exclusions": "Minor punch-list items do not count as late handover",
+      "source": "E360-CA-P11, Article 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR34",
+      "project": "P11",
+      "applies_to": "Punch-list close-out",
+      "measured_against": "Handover date",
+      "link": {
+        "type": "none",
+        "reason": "Applies only after handover; not assessable yet."
+      },
+      "grace_weeks": 4,
+      "rate_cr_per_week": 0.05,
+      "cap_cr": 0.5,
+      "rule_text": "0.05 Cr for each week any punch-list item stays open more than 4 weeks after handover, up to 0.5 Cr",
+      "exclusions": "Applies only after handover",
+      "source": "E360-CA-P11, Article 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR35",
+      "project": "P12",
+      "applies_to": "Phase 2 (sorter delivery to site)",
+      "measured_against": "Revised date",
+      "link": {
+        "type": "milestone",
+        "key": "P12|Phase 2"
+      },
+      "grace_weeks": 4,
+      "rate_cr_per_week": 0.1,
+      "cap_cr": 1,
+      "rule_text": "0.1 Cr for each week the sorter reaches site after the revised date, after a 4-week grace period, up to 1 Cr",
+      "exclusions": "Internal project: the charge is paid from the project budget to the sponsoring business unit; contract value shown is the approved budget",
+      "source": "E360-IDA-P12, Section 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR36",
+      "project": "P12",
+      "applies_to": "Go-live before peak season",
+      "measured_against": "Peak season start date",
+      "link": {
+        "type": "reference",
+        "due_date": "2027-10-01",
+        "due_label": "Peak season start date",
+        "forecast_from": "P12|Phase 4"
+      },
+      "grace_weeks": 0,
+      "rate_cr_per_week": 0.5,
+      "cap_cr": 5,
+      "rule_text": "0.5 Cr for each week the hub goes live after the peak season start date, no grace period, up to 5 Cr",
+      "exclusions": "Covers the cost of manual sorting during peak",
+      "source": "E360-IDA-P12, Section 9",
+      "reviewed": true
+    },
+    {
+      "id": "PR37",
+      "project": "P12",
+      "applies_to": "Final handover",
+      "measured_against": "Final contract date",
+      "link": {
+        "type": "final"
+      },
+      "grace_weeks": 2,
+      "rate_cr_per_week": 0.375,
+      "cap_cr": 7.5,
+      "rule_text": "0.25% of budget for each week handover is after the final contract date, after a 2-week grace period, up to 5% of budget",
+      "exclusions": "Charged in addition to the other charges",
+      "source": "E360-IDA-P12, Section 9",
+      "reviewed": true
+    }
+  ]
+}
