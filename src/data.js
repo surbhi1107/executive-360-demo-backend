@@ -10,7 +10,7 @@ import path from 'node:path';
 import JSZip from 'jszip';
 import { XMLParser } from 'fast-xml-parser';
 import config from './config.js';
-import { MONTHS, utcDay } from './dates.js';
+import { MONTHS, utcDay, addDays } from './dates.js';
 
 export const STAGE_KEYS = {
   'Survey and feasibility': 'survey',
@@ -59,6 +59,7 @@ const xml = new XMLParser({
   attributeNamePrefix: '@_',
   parseTagValue: false,
   trimValues: false,
+  htmlEntities: true, // so that numeric references such as &#183; (a middle dot) become the character
   isArray: (name) => ['sheet', 'Relationship', 'si', 'r', 'row', 'c', 'xf', 'numFmt'].includes(name),
 });
 
@@ -211,6 +212,12 @@ export function buildPortfolio(tabs, sourceName) {
       contract: toDay(r.Contract),
       revised: toDay(r.Revised),
       forecast: toDay(r.Forecast),
+      // internal target: earlier than the revised target, to leave a buffer
+      internal: toDay(r['Internal target']) ?? addDays(toDay(r.Revised), -7 * config.BUFFER_WEEKS),
+      // progress formally confirmed by the responsible department
+      confirmed_pct: blank(r['Confirmed %']) ? null : int(r['Confirmed %']),
+      confirmed_by: String(r['Confirmed by'] ?? ''),
+      confirmed_on: toDay(r['Confirmed on']),
       status: STATUS_KEYS[r.Status] ?? 'watch',
       excluded_weeks: int(r['Excluded weeks']), // optional column: certified weather / authority delay
       row: r._row,

@@ -20,6 +20,9 @@ export const floorDay = (d) => (d ? new Date(Date.UTC(d.getUTCFullYear(), d.getU
 /** Whole days from a to b (both days). */
 export const daysBetween = (a, b) => Math.round((b.getTime() - a.getTime()) / DAY_MS);
 
+/** A day moved by n days. */
+export const addDays = (d, n) => new Date(d.getTime() + n * DAY_MS);
+
 export const isoDay = (d) => d.toISOString().slice(0, 10);
 
 /** 4 Dec 2026, or 4 Dec */

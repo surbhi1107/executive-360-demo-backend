@@ -12,7 +12,7 @@
 // Amounts are in ₹ crore and are ESTIMATES based on forecast dates.
 import fs from 'node:fs';
 import config from './config.js';
-import { daysBetween, isoDay } from './dates.js';
+import { addDays, daysBetween, isoDay } from './dates.js';
 import { toDay } from './data.js';
 
 export const round4 = (x) => Math.round((x + Number.EPSILON) * 1e4) / 1e4;
@@ -41,7 +41,8 @@ const finalDates = (p) => [
   p.milestones.map((m) => m.forecast).reduce((a, b) => (b > a ? b : a)),
 ];
 
-export function assessRule(rule, project) {
+/** slipDays moves every forecast later, for 'what if it slips another month?' questions. */
+export function assessRule(rule, project, slipDays = 0) {
   const link = rule.link;
   const res = {
     id: rule.id,
@@ -88,6 +89,7 @@ export function assessRule(rule, project) {
     return res;
   }
 
+  fc = addDays(fc, slipDays);
   res.due = isoDay(due);
   res.forecast = isoDay(fc);
   res.weeks_late = weeksLate(due, fc);
@@ -101,12 +103,12 @@ export function assessRule(rule, project) {
   return res;
 }
 
-export function assessProject(project, rules = loadRules()) {
+export function assessProject(project, rules = loadRules(), slipDays = 0) {
   const info = rules.projects[project.id];
   if (!info) {
     return { project: project.id, agreement: '', contract_value_cr: 0, rules: [], total_before_cap_cr: 0, aggregate_cap_cr: null, exposure_cr: 0 };
   }
-  const list = rules.rules.filter((r) => r.project === project.id).map((r) => assessRule(r, project));
+  const list = rules.rules.filter((r) => r.project === project.id).map((r) => assessRule(r, project, slipDays));
   const total = round4(list.reduce((s, r) => s + r.amount_cr, 0));
   let aggregate = null;
   let exposure = total;

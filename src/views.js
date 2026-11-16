@@ -8,7 +8,12 @@ import { daysBetween, dMonHhmm, dMonYearHhmm, fmt, floorDay, hhmm, isoDay, pad }
 
 const STATUS_WORD = { risk: 'At risk', watch: 'Watch', ok: 'On track' };
 const SEV_ORDER = { risk: 0, watch: 1 };
-const TYPE_ORDER = { missed: 0, sla: 1, forecast: 2, budget: 3, stale: 4 };
+const TYPE_ORDER = { missed: 0, sla: 1, forecast: 2, budget: 3, confirm: 4, internal: 5, stale: 6 };
+const FLAG_LABEL = {
+  sla: 'SLA / penalty risk', forecast: 'Will miss milestone', missed: 'Milestone missed', stale: 'Data not updated',
+  budget: 'Budget running ahead', internal: 'Buffer being used', confirm: 'Progress not confirmed',
+};
+const CONFIRM_WORD = { confirmed: 'Confirmed', gap: 'Confirmed lower', stale: 'Confirmation out of date', none: 'Not confirmed', na: 'Not started' };
 
 // ------------------------------------------------------------------ small helpers
 export function money(v) {
@@ -56,9 +61,23 @@ function docSource(pen, locator, usedFor, excerpt = '') {
   return { kind: 'word', ref: pen.agreement, name: files[pen.agreement] ?? `${pen.agreement}.docx`, locator, used_for: usedFor, excerpt };
 }
 
+/** Where a milestone stands on formal confirmation of its progress by the responsible department. */
+export function confirmation(m, today) {
+  const days = m.confirmed_on ? daysBetween(m.confirmed_on, today) : null;
+  const gap = m.confirmed_pct !== null ? m.progress - m.confirmed_pct : null;
+  let status;
+  if (m.progress === 0 && m.confirmed_pct === null) status = 'na';
+  else if (m.confirmed_pct === null) status = 'none';
+  else if (gap >= config.CONFIRM_GAP) status = 'gap';
+  else if (m.progress < 100 && days !== null && days > config.CONFIRM_DAYS) status = 'stale';
+  else status = 'confirmed';
+  return { pct: m.confirmed_pct, by: m.confirmed_by, on: m.confirmed_on ? isoDay(m.confirmed_on) : null, days, gap, status, word: CONFIRM_WORD[status] };
+}
+
 const milestoneRecord = (m) => [
   ['Phase', m.phase],
   ['Scope', m.scope],
+  ['Internal target', fmt(m.internal)],
   ['Revised target', fmt(m.revised)],
   ['Forecast', fmt(m.forecast)],
   ['Progress', `${m.progress}%`],
@@ -71,6 +90,7 @@ const plural = (n, word = '') => (n === 1 ? word : 's');
 // ------------------------------------------------------------------ per-project figures
 export function projectFigures(p, today, rules) {
   const pen = assessProject(p, rules);
+  const whatIf = Object.fromEntries([2, 4, 8].map((w) => [w, assessProject(p, rules, 7 * w).exposure_cr]));
   const nxt = p.milestone(p.next_phase) ?? p.milestones[0] ?? null;
   const open = p.milestones.filter((m) => m.progress < 100);
   const finalContract = maxDay(p.milestones.map((m) => m.contract));
@@ -78,6 +98,7 @@ export function projectFigures(p, today, rules) {
   const daysSince = p.last_updated ? daysBetween(floorDay(p.last_updated), today) : null;
   return {
     penalty: pen,
+    what_if: whatIf,
     next: nxt,
     open,
     next_slip: nxt ? Math.max(0, weeksBetween(nxt.revised, nxt.forecast)) : 0,
@@ -123,6 +144,8 @@ export function projectView(p, f, today) {
     penalty: {
       exposure_cr: pen.exposure_cr,
       agreement: pen.agreement,
+      aggregate_cap_cr: pen.aggregate_cap_cr,
+      if_all_forecasts_slip_further: Object.fromEntries(Object.entries(f.what_if).map(([w, v]) => [`${w}_weeks`, v])),
       charging: charging.map((r) => ({
         id: r.id, applies_to: r.applies_to, weeks_late: r.weeks_late, chargeable_weeks: r.chargeable_weeks, amount_cr: r.amount_cr, source: r.source,
       })),
@@ -140,7 +163,8 @@ export function projectView(p, f, today) {
     ],
     phases: p.milestones.map((m, i) => ({
       n: i + 1, name: m.phase, scope: m.scope, contract: isoDay(m.contract), revised: isoDay(m.revised), forecast: isoDay(m.forecast),
-      status: m.status, ac: m.progress, start: isoDay(m.plan_start), end: isoDay(m.plan_end),
+      internal: isoDay(m.internal), buffer_days_left: daysBetween(m.forecast, m.revised),
+      status: m.status, ac: m.progress, confirmed: confirmation(m, today), start: isoDay(m.plan_start), end: isoDay(m.plan_end),
     })),
     stage_progress: Object.fromEntries(Object.entries(p.stages).map(([k, v]) => [k, [v.done, v.plan]])),
     focus,
@@ -227,6 +251,45 @@ export function buildFlags(p, f, today) {
         done: `Weekly recovery update requested from ${name} at {t}.`,
       },
       approval: `Send the recovery-options request to ${name}.`,
+    });
+  }
+
+  // 2b. Early warning: forecast is past the internal target but still inside the buffer (not late yet)
+  const eating = f.open.filter(
+    (m) => m.internal < m.forecast && weeksBetween(m.revised, m.forecast) < config.SLIP_WEEKS && !(f.next_missed && m === nxt),
+  );
+  if (eating.length) {
+    const m = eating.reduce((a, b) => (daysBetween(b.forecast, b.revised) < daysBetween(a.forecast, a.revised) ? b : a));
+    const left = daysBetween(m.forecast, m.revised);
+    const used = daysBetween(m.internal, m.forecast);
+    flags.push({
+      id: `internal-${p.id}`, type: 'internal', sev: 'watch', proj: p.id,
+      title: `${p.name}: ${m.phase} ${m.internal < today ? 'has missed' : 'will miss'} its internal target of ${fmt(m.internal, false)}; ` +
+        (left > 0 ? `${left} days of buffer left` : 'the buffer is used up'),
+      body: `${m.scope}: ${m.progress}% complete. Internal target ${fmt(m.internal)}, forecast ${fmt(m.forecast)}, committed date ${fmt(m.revised)}. ` +
+        `The forecast is ${used} days past the internal target` + (left > 0 ? `, leaving ${left} days before the committed date.` : ' and has reached the committed date.'),
+      impacts: [`${used} days of buffer used`, `${Math.max(left, 0)} days left`, `${m.progress}% complete`,
+        ...(eating.length > 1 ? [`${eating.length - 1} more milestone${eating.length > 2 ? 's' : ''}`] : [])],
+      evidence: `Internal target ${fmt(m.internal)}; forecast ${fmt(m.forecast)}; committed (revised) date ${fmt(m.revised)}.`,
+      sources: [msSrc(m, 'Internal target, forecast and committed date')],
+      suggest: [
+        `Ask ${name} what is using up the buffer and whether it can be recovered.`,
+        'Act now while it is cheap: no penalty applies until the committed date is passed.',
+        'Check that the forecast is realistic, so the remaining buffer is real.',
+      ],
+      call: { who: `${name} · ${role}`, slot: 'Tomorrow, 10:30 · 15 min', agenda: `${m.phase}: protecting the remaining buffer.` },
+      email: {
+        to: name,
+        subject: `${p.name}: ${m.phase} is using its buffer`,
+        body: `${first},\n\n${m.phase} on ${p.name} is forecast for ${fmt(m.forecast)}, past our internal target of ${fmt(m.internal)}. ` +
+          `We have ${Math.max(left, 0)} days left before the committed date of ${fmt(m.revised)}.\n\nPlease tell me what is using the buffer and what you will do to protect the committed date.\n\n${ceo}`,
+      },
+      auto: {
+        allowed: true,
+        text: `Ask ${name} for a weekly update on ${m.phase} and alert you if the remaining buffer falls below one week.`,
+        done: `Weekly buffer check with ${name} set up at {t}.`,
+      },
+      approval: `Send the buffer question to ${name}.`,
     });
   }
 
@@ -319,6 +382,59 @@ export function buildFlags(p, f, today) {
     });
   }
 
+  // 3b. Reported progress that the responsible department has not confirmed (one flag per project, the worst case)
+  const rank = { gap: 2, none: 1, stale: 0 };
+  const unconfirmed = p.milestones.map((m) => [m, confirmation(m, today)]).filter(([, c]) => ['gap', 'none', 'stale'].includes(c.status));
+  if (unconfirmed.length) {
+    const key = ([, c]) => [rank[c.status], c.gap ?? 0, c.days ?? 0];
+    const cmp = (a, b) => { const x = key(a), y = key(b); for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] - y[i]; return 0; };
+    const [m, c] = unconfirmed.reduce((best, x) => (cmp(x, best) > 0 ? x : best));
+    const at = c.by.indexOf(' · ');
+    const deptName = at < 0 ? c.by : c.by.slice(0, at);
+    const personName = at < 0 ? '' : c.by.slice(at + 3);
+    const who = personName || name;
+    let title, body, impacts;
+    if (c.status === 'gap') {
+      title = `${p.name}: ${m.phase} is reported ${m.progress}% complete but only ${c.pct}% is confirmed`;
+      body = `${m.scope}: the project team reports ${m.progress}%. ${deptName} confirmed ${c.pct}% on ${fmt(m.confirmed_on)}, ` +
+        `a difference of ${c.gap} points. Forecasts and penalties on this page use the reported figure.`;
+      impacts = [`${c.gap} points unconfirmed`, `Confirmed ${c.pct}%`, `By: ${deptName}`];
+    } else if (c.status === 'none') {
+      title = `${p.name}: ${m.phase} progress of ${m.progress}% has not been confirmed by any department`;
+      body = `${m.scope}: the project team reports ${m.progress}% but no department has confirmed it.`;
+      impacts = [`Reported ${m.progress}%`, 'No confirmation'];
+    } else {
+      title = `${p.name}: ${m.phase} progress was last confirmed ${c.days} days ago`;
+      body = `${m.scope}: ${deptName} last confirmed progress (${c.pct}%) on ${fmt(m.confirmed_on)}. ` +
+        `The team now reports ${m.progress}%. Confirmation is expected at least every ${config.CONFIRM_DAYS} days.`;
+      impacts = [`${c.days} days since confirmation`, `Confirmed ${c.pct}%`, `By: ${deptName}`];
+    }
+    flags.push({
+      id: `confirm-${p.id}`, type: 'confirm', sev: (c.gap ?? 0) >= 2 * config.CONFIRM_GAP ? 'risk' : 'watch', proj: p.id,
+      title, body,
+      impacts: [...impacts, ...(unconfirmed.length > 1 ? [`${unconfirmed.length - 1} more milestone${unconfirmed.length > 2 ? 's' : ''}`] : [])],
+      evidence: `Reported ${m.progress}%; confirmed ${c.pct !== null ? c.pct : 'nothing'}` + (m.confirmed_on ? ` by ${c.by} on ${fmt(m.confirmed_on)}.` : '.'),
+      sources: [msSrc(m, 'Reported progress, confirmed progress, who confirmed and when')],
+      suggest: [
+        `Ask ${who} to inspect and confirm ${m.phase} this week.`,
+        `Ask ${name} why the reported figure is ahead of what has been confirmed.`,
+        'Until it is confirmed, treat the forecast date for this milestone with caution.',
+      ],
+      call: { who: `${who} · ${deptName || role}`, slot: 'Tomorrow, 11:30 · 15 min', agenda: `Confirming progress on ${p.name} ${m.phase}.` },
+      email: {
+        to: who,
+        subject: `${p.name}: please confirm progress on ${m.phase}`,
+        body: `${who.split(/\s+/)[0]},\n\n${body}\n\nPlease inspect and confirm the current progress by Wednesday, and tell me if you disagree with the reported figure.\n\n${ceo}`,
+      },
+      auto: {
+        allowed: true,
+        text: `Ask ${who} to confirm progress on ${m.phase} and remind them every two days until it is done.`,
+        done: `Confirmation request sent to ${who} at {t}, with reminders every two days.`,
+      },
+      approval: `Send the confirmation request to ${who}.`,
+    });
+  }
+
   // 5. Schedule not updated
   if (f.stale) {
     const d = f.days_since_update;
@@ -380,6 +496,14 @@ export function buildDashboard(pf, today = config.asOf()) {
     }
   }
   flags.sort((a, b) => SEV_ORDER[a.sev] - SEV_ORDER[b.sev] || TYPE_ORDER[a.type] - TYPE_ORDER[b.type]);
+  const names = Object.fromEntries(projects.map((p) => [p.id, p.name]));
+  for (const fl of flags) {
+    // the fields every department's flags carry
+    Object.assign(fl, {
+      dept: 'projects', where: names[fl.proj], label: FLAG_LABEL[fl.type],
+      short: `${names[fl.proj]}: ${FLAG_LABEL[fl.type].toLowerCase()}`, ask: fl.title,
+    });
+  }
   const atRisk = projects.filter((p) => p.health === 'risk');
   const t = pf.loaded_at;
   return {

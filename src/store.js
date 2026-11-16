@@ -54,6 +54,23 @@ export function initDb() {
   conn().exec(SCHEMA);
 }
 
+/** The open database connection, for the other modules that keep their own tables (cases.js). */
+export const getDb = () => conn();
+
+/** Run several statements together: all of them are saved, or none. */
+export function transaction(fn) {
+  const c = conn();
+  c.exec('BEGIN');
+  try {
+    const out = fn(c);
+    c.exec('COMMIT');
+    return out;
+  } catch (e) {
+    c.exec('ROLLBACK');
+    throw e;
+  }
+}
+
 export function closeDb() {
   if (db) db.close();
   db = null;
@@ -92,4 +109,50 @@ export function recordAsk(question, answer = null, error = null) {
   conn()
     .prepare('INSERT INTO asks(question, answer, error, model, input_tokens, output_tokens, ms, created_at) VALUES (?,?,?,?,?,?,?,?)')
     .run(question, answer ? JSON.stringify(answer) : null, error, meta.model ?? null, meta.input_tokens ?? null, meta.output_tokens ?? null, meta.ms ?? null, localIsoSeconds());
+}
+
+
+// ------------------------------------------------------------------ snapshots and saved AI writing
+const EXTRA_SCHEMA = `
+CREATE TABLE IF NOT EXISTS snapshots (       -- the state of the dashboard each time the data changed
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  day TEXT NOT NULL,                         -- the "as of" date of the data
+  taken_at TEXT NOT NULL,
+  fingerprint TEXT NOT NULL,
+  data TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS ai_cache (        -- AI-written briefs and flag advice, so the same text is not paid for twice
+  key TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,                        -- brief | advice | links
+  data TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+`;
+
+export function initExtra() {
+  conn().exec(EXTRA_SCHEMA);
+}
+
+/** Save the snapshot only if it differs from the latest one. */
+export function saveSnapshot(day, fingerprint, data) {
+  const c = conn();
+  const last = c.prepare('SELECT fingerprint FROM snapshots ORDER BY id DESC LIMIT 1').get();
+  if (!last || last.fingerprint !== fingerprint) {
+    c.prepare('INSERT INTO snapshots(day, taken_at, fingerprint, data) VALUES (?,?,?,?)').run(day, localIsoSeconds(), fingerprint, JSON.stringify(data));
+  }
+}
+
+/** The most recent snapshot that is different from the current one. */
+export function previousSnapshot(fingerprint) {
+  const row = conn().prepare('SELECT * FROM snapshots WHERE fingerprint != ? ORDER BY id DESC LIMIT 1').get(fingerprint);
+  return row ? { day: row.day, taken_at: row.taken_at, data: JSON.parse(row.data) } : null;
+}
+
+export function cacheGet(key) {
+  const row = conn().prepare('SELECT data FROM ai_cache WHERE key = ?').get(key);
+  return row ? JSON.parse(row.data) : null;
+}
+
+export function cachePut(key, kind, data) {
+  conn().prepare('INSERT OR REPLACE INTO ai_cache(key, kind, data, created_at) VALUES (?,?,?,?)').run(key, kind, JSON.stringify(data), localIsoSeconds());
 }
