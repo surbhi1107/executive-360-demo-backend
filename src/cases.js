@@ -215,6 +215,21 @@ export function escalationBody(c) {
     `There has been no reply and the figures have not changed. Please take this up and come back to me by tomorrow.\n\n${config.CEO_NAME}`;
 }
 
+/** Read the mailbox and save each new reply on its case. Sends nothing. Returns a line per reply saved. */
+export async function captureReplies(fetchReplies, summarise) {
+  const saved = [];
+  for (const r of await fetchReplies(new Date(Date.now() - 30 * DAY_MS))) {
+    const seen = one('SELECT 1 AS x FROM mail_seen WHERE message_id = ?', r.message_id);
+    if (!seen) run1('INSERT INTO mail_seen(message_id) VALUES (?)', r.message_id);
+    const c = row(r.case_id);
+    if (seen || !c || !OPEN.includes(c.status) || !r.text) continue;
+    recordReply(c.id, r.from, r.text, await summarise(r.text, c), addMs(r.at, offsetDays()));
+    console.log(`[mail] reply from ${r.from} saved on case ${c.id}`);
+    saved.push(`Reply from ${r.from} recorded on case ${c.id}`);
+  }
+  return saved;
+}
+
 /**
  * One pass over every open case: read replies, check the data, and take the next step on the ladder.
  *   send(toName, subject, body, caseId) -> { note }     sends (or records) an email
@@ -228,14 +243,7 @@ export async function run(flagsById, send, fetchReplies, summarise) {
   const done = [];
 
   // 1. Replies from the mailbox
-  for (const r of await fetchReplies(new Date(Date.now() - 30 * DAY_MS))) {
-    const seen = one('SELECT 1 AS x FROM mail_seen WHERE message_id = ?', r.message_id);
-    if (!seen) run1('INSERT INTO mail_seen(message_id) VALUES (?)', r.message_id);
-    const c = row(r.case_id);
-    if (seen || !c || !OPEN.includes(c.status) || !r.text) continue;
-    recordReply(c.id, r.from, r.text, await summarise(r.text, c), addMs(r.at, offsetDays()));
-    done.push(`Reply from ${r.from} recorded on case ${c.id}`);
-  }
+  done.push(...(await captureReplies(fetchReplies, summarise)));
 
   for (const c of all(`SELECT * FROM cases WHERE status IN ${IN_OPEN}`, ...OPEN)) {
     const flag = flagsById[c.flag_id];

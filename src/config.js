@@ -5,10 +5,7 @@ import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import { utcDay, todayLocal } from './dates.js';
 
-export const ROOT = path.resolve(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '..',
-);
+export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 dotenv.config({ path: path.join(ROOT, '.env'), quiet: true });
 
 const str = (name, def = '') => (process.env[name] ?? '').trim() || def;
@@ -27,34 +24,17 @@ const DATA_DIR = filePath('E360_DATA_DIR', path.join(ROOT, 'data'));
 const config = {
   ROOT,
   DATA_DIR,
-  WORKBOOK: filePath(
-    'E360_WORKBOOK',
-    path.join(DATA_DIR, 'Executive_360_Project_Data_clean.xlsx'),
-  ),
-  AGREEMENTS_DIR: filePath(
-    'E360_AGREEMENTS_DIR',
-    path.join(DATA_DIR, 'agreements'),
-  ),
+  WORKBOOK: filePath('E360_WORKBOOK', path.join(DATA_DIR, 'Executive_360_Project_Data_clean.xlsx')),
+  AGREEMENTS_DIR: filePath('E360_AGREEMENTS_DIR', path.join(DATA_DIR, 'agreements')),
   RULES: filePath('E360_RULES', path.join(DATA_DIR, 'rules.json')),
   // Finance, Sales, Operations, Customers and People workbooks
   DEPT_DIR: filePath('E360_DEPT_DIR', path.join(DATA_DIR, 'departments')),
   // Who can be emailed, and their manager (for escalation)
-  CONTACTS: filePath(
-    'E360_CONTACTS',
-    path.join(DATA_DIR, 'Executive_360_Contacts.xlsx'),
-  ),
+  CONTACTS: filePath('E360_CONTACTS', path.join(DATA_DIR, 'Executive_360_Contacts.xlsx')),
   // On Vercel only /tmp is writable (and it is not kept between cold starts), so the database lives there.
-  DB_PATH: filePath(
-    'E360_DB',
-    process.env.VERCEL
-      ? path.join(os.tmpdir(), 'executive360.db')
-      : path.join(ROOT, 'instance', 'executive360.db'),
-  ),
+  DB_PATH: filePath('E360_DB', process.env.VERCEL ? path.join(os.tmpdir(), 'executive360.db') : path.join(ROOT, 'instance', 'executive360.db')),
   // Built React app (frontend/dist). Express serves it when it exists.
-  FRONTEND_DIST: filePath(
-    'E360_FRONTEND_DIST',
-    path.join(ROOT, '..', 'frontend', 'dist'),
-  ),
+  FRONTEND_DIST: filePath('E360_FRONTEND_DIST', path.join(ROOT, '..', 'frontend', 'dist')),
 
   // Leave empty to use today's date. Set to 2026-11-14 to freeze the demo at the date the sample data describes.
   AS_OF: str('E360_AS_OF'),
@@ -82,6 +62,8 @@ const config = {
   GMAIL_ADDRESS: str('GMAIL_ADDRESS'),
   GMAIL_APP_PASSWORD: (process.env.GMAIL_APP_PASSWORD ?? '').replace(/\s/g, ''),
   TEST_INBOX: str('E360_TEST_INBOX'),
+  // How often the server looks for email replies, in minutes. 0 = never (use the button on Follow-ups).
+  REPLY_CHECK_MINUTES: int('E360_REPLY_CHECK_MINUTES', 2),
 
   // The person using the dashboard (used in email drafts)
   CEO_NAME: process.env.E360_CEO_NAME || 'Anita Rao',
@@ -95,10 +77,7 @@ const config = {
   asOf() {
     if (this.AS_OF) {
       const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(this.AS_OF);
-      if (!m)
-        throw new Error(
-          `E360_AS_OF must look like 2026-11-14, got "${this.AS_OF}"`,
-        );
+      if (!m) throw new Error(`E360_AS_OF must look like 2026-11-14, got "${this.AS_OF}"`);
       return utcDay(+m[1], +m[2], +m[3]);
     }
     return todayLocal();

@@ -617,6 +617,27 @@ describe('HTTP API', () => {
       }
     });
 
+    test('POST /api/cases/check reads new replies right away', async () => {
+      mailOn();
+      try {
+        const flag = 'people-role-senior-planning-engineer';
+        await act(flag, 'send');
+        const cid = cases.openForFlag(flag).id;
+        box.inbox.push(Buffer.from(
+          `From: Tanya George <t@x.com>\nSubject: Re: role [E360-${cid}]\nMessage-ID: <check1@x>\nDate: Sun, 15 Nov 2026 11:00:00 +0530\nContent-Type: text/plain; charset=utf-8\n\n` +
+          'Joining date confirmed for 1 Dec.\n'));
+        ask.setClient(null);
+        const j = await json(await post('/api/cases/check', {}));
+        const c = j.cases.find((x) => x.id === cid);
+        assert.equal(c.status, 'replied');
+        assert.ok(c.reply.summary.startsWith('Joining date confirmed'));
+        await post(`/api/cases/${cid}/action`, { action: 'close' });
+      } finally {
+        ask.setClient(fake);
+        mailOff();
+      }
+    });
+
     test('a reply recorded by hand is summarised', async () => {
       await act('finance-overdue-inv-2640', 'send');
       const cid = cases.openForFlag('finance-overdue-inv-2640').id;

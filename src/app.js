@@ -254,6 +254,24 @@ export function createApp() {
   // ------------------------------------------------------------------ email, cases and follow-up
   app.get('/api/cases', ...P(async (req, res) => res.json(await casesPayload())));
 
+  /** Called by server.js every few minutes: save new email replies on their cases (sends nothing). */
+  let checking = false; // never run two mailbox checks at once
+  app.checkReplies = async () => {
+    if (checking) return [];
+    checking = true;
+    try {
+      return await cases.captureReplies(mailer.fetchReplies, advisor.summariseReply);
+    } finally {
+      checking = false;
+    }
+  };
+
+  /** The dashboard calls this every 30 seconds while it is open: look for new replies, then return the cases. */
+  app.post('/api/cases/check', ...P(async (req, res) => {
+    if (mailer.status().ready) await app.checkReplies();
+    res.json(await casesPayload());
+  }));
+
   /** Read replies, check whether the data moved, and take the next step on each open case.
    *  Body (optional): { advance_days: 1 } moves the demo clock forward first; { reset_clock: true } sets it back to today. */
   app.post('/api/followups/run', ...P(async (req, res) => {
