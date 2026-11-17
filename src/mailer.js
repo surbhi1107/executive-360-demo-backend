@@ -63,8 +63,9 @@ export function invite(start, minutes, summary, description, attendee) {
   ].join('\r\n');
 }
 
-/** Send one email. Never throws. Returns { sent, mode, delivered_to, note }. */
-export async function send(toName, toEmail, subject, body, caseId, ics = null) {
+/** Send one email. Never throws. Returns { sent, mode, delivered_to, note, message_id }.
+ *  threadId is the Message-ID of the first email on the case: with it, this email lands in the same chain. */
+export async function send(toName, toEmail, subject, body, caseId, ics = null, threadId = null) {
   const { mode, ready } = status();
   const fail = (note) => {
     console.log(`[mail] NOT SENT (case ${caseId}, mode ${mode}): ${note}`);
@@ -84,8 +85,10 @@ export async function send(toName, toEmail, subject, body, caseId, ics = null) {
     to: `${toName} <${to}>`,
     subject: `${subject} ${tag}`,
     text: `${testLine}${body}\n\n--\nSent with Executive 360° on behalf of ${config.CEO_NAME}. Reply to this email to respond; keep ${tag} in the subject.`,
+    messageId: `<e360-${caseId}-${crypto.randomUUID()}@${(config.GMAIL_ADDRESS.split('@')[1] || 'executive360')}>`,
     headers: { 'X-E360-Out': String(caseId) }, // so our own outgoing mail is never read back as a reply
   };
+  if (threadId) Object.assign(message, { inReplyTo: threadId, references: threadId }); // same chain
   if (ics) message.icalEvent = { method: 'REQUEST', filename: 'invite.ics', content: ics };
 
   console.log(`[mail] sending case ${caseId} (${mode}) from ${config.GMAIL_ADDRESS} to ${to}${ics ? ' with calendar invite' : ''}: "${message.subject}"`);
@@ -97,7 +100,7 @@ export async function send(toName, toEmail, subject, body, caseId, ics = null) {
     return fail(`not sent: ${String(e.message).slice(0, 120)}`);
   }
   console.log(`[mail] SENT case ${caseId} to ${to}`);
-  return { sent: true, mode, delivered_to: to, note: mode === 'test' ? `test mode: delivered to ${to}` : `sent to ${to}` };
+  return { sent: true, mode, delivered_to: to, message_id: message.messageId, note: mode === 'test' ? `test mode: delivered to ${to}` : `sent to ${to}` };
 }
 
 /** A reply's new text, without the quoted original underneath. */

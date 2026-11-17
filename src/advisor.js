@@ -90,6 +90,16 @@ export const REPLY_TOOL = {
   },
 };
 
+export const DRAFT_TOOL = {
+  name: 'email_draft',
+  description: "The CEO's next email in this thread.",
+  input_schema: {
+    type: 'object',
+    properties: { body: { type: 'string', description: 'The email text only. Plain text. Start with the first name. Under 120 words. Do not sign off with a name.' } },
+    required: ['body'],
+  },
+};
+
 export const LINKS_TOOL = {
   name: 'connected_issues',
   description: 'One short story for each group of connected flags.',
@@ -370,6 +380,26 @@ export async function summariseReply(text, c, today = isoDay(config.asOf())) {
   if (!summary) return fallback;
   const stance = out.stance;
   return summary.slice(0, 400) + (['needs help', 'disagrees', 'unclear'].includes(stance) ? ` (${stance})` : '');
+}
+
+// ------------------------------------------------------------------ the CEO's next email in a case
+/** The next email, written from the whole conversation so far. Falls back to a short standard note if Claude is unavailable.
+ *  conversation: [{ at, who, text }] oldest first (cases.conversation). Returns the text without a sign-off. */
+export async function draftReply(c, conversation, today = isoDay(config.asOf())) {
+  const first = c.owner.split(/\s+/)[0];
+  const fallback = conversation.some((m) => m.who !== config.CEO_NAME && m.who !== 'Executive 360°')
+    ? `${first},\n\nThanks for the update. Please tell me by when this will be done, and whether you need anything from me.`
+    : `${first},\n\nFollowing up on my earlier note about this. Please send me a short update today.`;
+  try {
+    const out = await call(
+      [{ source: 'CASE', issue: c.title, person: c.owner, role: c.owner_role }, { source: 'CONVERSATION', messages: conversation.slice(-20) }],
+      [], 'Write the CEO\'s next email in this thread. Read the whole conversation first. Answer what the person last said, do not repeat what has already been said, and ask for one clear next step with a date.',
+      DRAFT_TOOL, today, 600);
+    return String(out.body ?? '').trim() || fallback;
+  } catch (e) {
+    if (e instanceof AskUnavailable) return fallback;
+    throw e;
+  }
 }
 
 // ------------------------------------------------------------------ 4. connected issues across departments

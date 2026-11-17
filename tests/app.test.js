@@ -563,7 +563,8 @@ describe('HTTP API', () => {
         assert.equal(mine(await run(1)).contacts, 1); // day 1: too early
         let j = await run(1); // day 2: reminder
         assert.equal(mine(j).events.at(-1).kind, 'reminder');
-        assert.match(box.sent.at(-1).subject, /Reminder:/);
+        assert.match(box.sent.at(-1).subject, /^Re: /); // same chain as the first email
+        assert.equal(box.sent.at(-1).inReplyTo, box.sent[0].messageId);
         j = await run(2); // day 4: escalated to the manager
         assert.equal(mine(j).events.at(-1).kind, 'escalated');
         assert.match(box.sent.at(-1).to, /Suresh Pillai/);
@@ -638,15 +639,50 @@ describe('HTTP API', () => {
       }
     });
 
-    test('a reply recorded by hand is summarised', async () => {
-      await act('finance-overdue-inv-2640', 'send');
-      const cid = cases.openForFlag('finance-overdue-inv-2640').id;
-      const r = await post(`/api/cases/${cid}/reply`, { text: 'Payment will be released on Friday.', from: 'Meera Krishnan' });
-      assert.equal(r.status, 200);
-      const c = (await r.json()).cases.find((x) => x.id === cid);
-      assert.equal(c.status, 'replied');
-      assert.equal((await post(`/api/cases/${cid}/reply`, { text: '  ' })).status, 400);
-      await post(`/api/cases/${cid}/action`, { action: 'close' });
+    test('Reply: a draft is suggested, and what is sent stays in the first email chain', async () => {
+      mailOn();
+      try {
+        const flag = 'people-role-senior-planning-engineer';
+        await act(flag, 'send');
+        const cid = cases.openForFlag(flag).id;
+        const first = box.sent.at(-1);
+        ask.setClient(null);
+        const d = await json(await post(`/api/cases/${cid}/draft`, {}));
+        assert.ok(d.to && d.body.length > 10);
+        const j = await json(await post(`/api/cases/${cid}/send`, { body: 'Please confirm the joining date.' }));
+        const sent = box.sent.at(-1);
+        assert.match(sent.subject, /^Re: /);
+        assert.equal(sent.inReplyTo, first.messageId);
+        assert.equal(sent.references, first.messageId);
+        assert.ok(sent.text.includes('Please confirm the joining date.'));
+        assert.equal(j.cases.find((x) => x.id === cid).contacts, 2);
+        assert.equal((await post(`/api/cases/${cid}/send`, { body: '  ' })).status, 400);
+        await post(`/api/cases/${cid}/action`, { action: 'close' });
+      } finally {
+        ask.setClient(fake);
+        mailOff();
+      }
+    });
+
+    test('automatic follow-up answers a new reply by itself, in the same chain', async () => {
+      mailOn();
+      try {
+        const flag = 'operations-delivery-north-delhi-hub';
+        await act(flag, 'auto');
+        const cid = cases.openForFlag(flag).id;
+        const first = box.sent.at(-1);
+        box.inbox.push(Buffer.from(
+          `From: Owner <o@x.com>\nSubject: Re: s [E360-${cid}]\nMessage-ID: <auto1@x>\nDate: Sun, 15 Nov 2026 12:00:00 +0530\nContent-Type: text/plain; charset=utf-8\n\nWe will clear it by Friday.\n`));
+        ask.setClient(null);
+        const j = await json(await post('/api/cases/check', {}));
+        const c = j.cases.find((x) => x.id === cid);
+        assert.equal(c.events.at(-1).kind, 'auto_reply');
+        assert.equal(box.sent.at(-1).inReplyTo, first.messageId);
+        await post(`/api/cases/${cid}/action`, { action: 'close' });
+      } finally {
+        ask.setClient(fake);
+        mailOff();
+      }
     });
 
     test('the ladder days are saved and kept in order', async () => {

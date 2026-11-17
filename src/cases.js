@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS cases (
   auto INTEGER NOT NULL DEFAULT 0,          -- automatic follow-up switched on by the CEO
   auto_allowed INTEGER NOT NULL DEFAULT 1,  -- 0 for flags about money, customers or individuals
   subject TEXT,
+  thread_id TEXT, thread_subject TEXT,   -- the first email sent: later emails reply to it, so they stay in one chain
   contacts INTEGER NOT NULL DEFAULT 0,
   ladder_step INTEGER NOT NULL DEFAULT 0,
   opened_at TEXT NOT NULL, first_contact_at TEXT, last_contact_at TEXT,
@@ -57,6 +58,9 @@ CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 
 export function init() {
   getDb().exec(SCHEMA);
+  // databases made before email threads existed
+  const have = getDb().prepare('PRAGMA table_info(cases)').all().map((r) => r.name);
+  for (const col of ['thread_id', 'thread_subject']) if (!have.includes(col)) getDb().exec(`ALTER TABLE cases ADD COLUMN ${col} TEXT`);
 }
 
 const db = () => getDb();
@@ -162,6 +166,19 @@ export function setAuto(caseId, on) {
   addEvent(caseId, 'auto', config.CEO_NAME, 'Automatic follow-up turned ' + (on ? 'on: reminders and escalation will be sent without asking.' : 'off.'));
 }
 
+/** Remember the first email sent on a case. Every later email replies to it, so the whole case is one chain. */
+export function setThread(caseId, messageId, subject) {
+  update(caseId, { thread_id: messageId, thread_subject: subject });
+}
+
+/** Everything said on the case so far, oldest first: [{ at, who, text }]. Used to write the next email. */
+export function conversation(caseId) {
+  return all("SELECT * FROM case_events WHERE case_id = ? AND kind IN ('email','reminder','escalated','reply','auto_reply','call') ORDER BY id", caseId).map((e) => {
+    const p = JSON.parse(e.payload || '{}');
+    return { at: e.at, who: e.actor, text: String(p.full_text || p.body || e.text).slice(0, 1500) };
+  });
+}
+
 // ------------------------------------------------------------------ reading
 /** Has the data moved since the last contact? Judged from the flag, not from what anyone said. */
 function dataState(c, flag, now) {
@@ -215,8 +232,13 @@ export function escalationBody(c) {
     `There has been no reply and the figures have not changed. Please take this up and come back to me by tomorrow.\n\n${config.CEO_NAME}`;
 }
 
-/** Read the mailbox and save each new reply on its case. Sends nothing. Returns a line per reply saved. */
-export async function captureReplies(fetchReplies, summarise) {
+const MAX_AUTO_REPLIES = 3; // so two auto-responders can never keep writing to each other
+
+/**
+ * Read the mailbox and save each new reply on its case. Returns a line per reply saved.
+ * If the case has automatic follow-up on, autoReply(case) writes and sends the answer (at most MAX_AUTO_REPLIES per case).
+ */
+export async function captureReplies(fetchReplies, summarise, autoReply = null) {
   const saved = [];
   for (const r of await fetchReplies(new Date(Date.now() - 30 * DAY_MS))) {
     const seen = one('SELECT 1 AS x FROM mail_seen WHERE message_id = ?', r.message_id);
@@ -226,6 +248,11 @@ export async function captureReplies(fetchReplies, summarise) {
     recordReply(c.id, r.from, r.text, await summarise(r.text, c), addMs(r.at, offsetDays()));
     console.log(`[mail] reply from ${r.from} saved on case ${c.id}`);
     saved.push(`Reply from ${r.from} recorded on case ${c.id}`);
+    const sent = one("SELECT COUNT(*) AS n FROM case_events WHERE case_id = ? AND kind = 'auto_reply'", c.id).n;
+    if (autoReply && c.auto && c.auto_allowed && sent < MAX_AUTO_REPLIES) {
+      await autoReply(row(c.id));
+      saved.push(`Case ${c.id}: answered automatically`);
+    }
   }
   return saved;
 }
@@ -235,15 +262,16 @@ export async function captureReplies(fetchReplies, summarise) {
  *   send(toName, subject, body, caseId) -> { note }     sends (or records) an email
  *   fetchReplies(since) -> [{ case_id, from, at, text, message_id }]
  *   summarise(text, case) -> string                      one or two sentences
+ *   autoReply(case)                                      answers a reply on cases with automatic follow-up on (optional)
  * Returns a plain list of what was done.
  */
-export async function run(flagsById, send, fetchReplies, summarise) {
+export async function run(flagsById, send, fetchReplies, summarise, autoReply = null) {
   const now = clock();
   const lad = ladder();
   const done = [];
 
   // 1. Replies from the mailbox
-  done.push(...(await captureReplies(fetchReplies, summarise)));
+  done.push(...(await captureReplies(fetchReplies, summarise, autoReply)));
 
   for (const c of all(`SELECT * FROM cases WHERE status IN ${IN_OPEN}`, ...OPEN)) {
     const flag = flagsById[c.flag_id];

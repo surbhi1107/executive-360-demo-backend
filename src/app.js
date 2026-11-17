@@ -109,8 +109,23 @@ export function createApp() {
     };
   };
 
-  /** Send an email to a person in the contacts workbook (or record it, if email is off). */
-  const deliver = async (toName, subject, body, caseId, ics = null) => mailer.send(toName, (await contacts.find(toName)).email, subject, body, caseId, ics);
+  /** Send an email to a person in the contacts workbook (or record it, if email is off).
+   *  The first email on a case starts a thread; every later one replies to it, so a case is one chain in the inbox. */
+  const deliver = async (toName, subject, body, caseId, ics = null) => {
+    const c = cases.row(caseId);
+    const threaded = c && c.thread_id && !ics; // calendar invites stay separate
+    const r = await mailer.send(toName, (await contacts.find(toName)).email, threaded ? `Re: ${c.thread_subject}` : subject, body, caseId, ics, threaded ? c.thread_id : null);
+    if (r.sent && c && !c.thread_id && !ics) cases.setThread(caseId, r.message_id, subject);
+    return r;
+  };
+
+  /** Automatic follow-up: the AI writes the answer to a new reply and sends it in the same chain. */
+  const autoReply = async (c) => {
+    const body = await advisor.draftReply(c, cases.conversation(c.id));
+    const r = await deliver(c.owner, c.subject || c.title, `${body}\n\n${config.CEO_NAME}`, c.id);
+    cases.contact(c, 'auto_reply', 'Executive 360°', `Answered ${c.owner} automatically (${r.note}).`, { to: c.owner, body });
+  };
+  const checkMail = () => cases.captureReplies(mailer.fetchReplies, advisor.summariseReply, autoReply);
 
   const casesPayload = async (dash = null, depts = null) => {
     dash ??= await dashboard();
@@ -260,7 +275,7 @@ export function createApp() {
     if (checking) return [];
     checking = true;
     try {
-      return await cases.captureReplies(mailer.fetchReplies, advisor.summariseReply);
+      return await checkMail();
     } finally {
       checking = false;
     }
@@ -280,43 +295,37 @@ export function createApp() {
     else if (body.advance_days) cases.setOffset(cases.offsetDays() + Math.max(0, Math.min(30, wholeNumber(body.advance_days))));
     const dash = await dashboard();
     const depts = await departments(dash);
-    const done = await cases.run(flagMap(depts), deliver, mailer.fetchReplies, advisor.summariseReply);
+    const done = await cases.run(flagMap(depts), deliver, mailer.fetchReplies, advisor.summariseReply, autoReply);
     res.json({ done, ...(await casesPayload(dash, depts)) });
   }));
 
-  /** Record a reply by hand (for example from a phone call). The AI summarises it for the timeline. */
-  app.post('/api/cases/:id/reply', ...P(async (req, res) => {
-    const body = asObject(req.body);
-    const text = String(body.text ?? '').trim().slice(0, 4000);
-    const id = Number(req.params.id);
-    const payload = await casesPayload();
-    const c = payload.cases.find((x) => x.id === id);
-    if (!c || !text) return res.status(400).json({ error: 'Case not found, or the reply is empty.' });
-    cases.recordReply(id, String(body.from || c.owner).slice(0, 80), text, await advisor.summariseReply(text, c));
-    return res.json(await casesPayload());
+  /** The Reply button: a suggested email, written from everything said on this case so far. */
+  app.post('/api/cases/:id/draft', ...P(async (req, res) => {
+    const c = cases.row(Number(req.params.id));
+    if (!c || !cases.OPEN.includes(c.status)) return res.status(400).json({ error: 'This case is not open.' });
+    res.json({ to: c.owner, body: await advisor.draftReply(c, cases.conversation(c.id)) });
   }));
 
-  /** The CEO's decision on a case: remind | escalate | close | auto_on | auto_off. */
+  /** Send the CEO's reply (edited or not) to the owner, in the same email chain. */
+  app.post('/api/cases/:id/send', ...P(async (req, res) => {
+    const c = cases.row(Number(req.params.id));
+    const text = String(asObject(req.body).body ?? '').trim().slice(0, 5000);
+    if (!c || !cases.OPEN.includes(c.status) || !text) return res.status(400).json({ error: 'Case not open, or the message is empty.' });
+    const r = await deliver(c.owner, c.subject || c.title, `${text}\n\n${config.CEO_NAME}`, c.id);
+    cases.contact(c, 'email', config.CEO_NAME, `Replied to ${c.owner} (${r.note}).`, { to: c.owner, body: text });
+    res.json(await casesPayload());
+  }));
+
+  /** The CEO's other decisions on a case: close | auto_on | auto_off. */
   app.post('/api/cases/:id/action', ...P(async (req, res) => {
     const { action } = asObject(req.body);
     const id = Number(req.params.id);
     const c = cases.row(id);
     if (!c || !cases.OPEN.includes(c.status)) return res.status(400).json({ error: 'This case is not open.' });
     try {
-      if (action === 'remind') {
-        const r = await deliver(c.owner, `Reminder: ${c.subject || c.title}`, cases.reminderBody(c), id);
-        cases.contact(c, 'reminder', config.CEO_NAME, `Reminder sent to ${c.owner} (${r.note}).`, null, { ladder_step: Math.max(c.ladder_step, 1) });
-      } else if (action === 'escalate') {
-        if (!c.manager) return res.status(400).json({ error: `No manager is recorded for ${c.owner} in the contacts workbook.` });
-        const r = await deliver(c.manager, `Escalation: ${c.subject || c.title}`, cases.escalationBody(c), id);
-        cases.contact(c, 'escalated', config.CEO_NAME, `Escalated to ${c.manager} (${r.note}).`, null, { ladder_step: Math.max(c.ladder_step, 2) });
-      } else if (action === 'close') {
-        cases.close(id);
-      } else if (action === 'auto_on' || action === 'auto_off') {
-        cases.setAuto(id, action === 'auto_on');
-      } else {
-        return res.status(400).json({ error: 'action must be remind, escalate, close, auto_on or auto_off' });
-      }
+      if (action === 'close') cases.close(id);
+      else if (action === 'auto_on' || action === 'auto_off') cases.setAuto(id, action === 'auto_on');
+      else return res.status(400).json({ error: 'action must be close, auto_on or auto_off' });
     } catch (e) {
       return res.status(400).json({ error: e.message });
     }
